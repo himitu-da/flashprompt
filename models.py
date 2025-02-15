@@ -48,14 +48,10 @@ class PromptManager:
 
     def save_prompt(self, name, template):
         """
-        新しいプロンプトを保存する。
-
-        Args:
-            name (str): プロンプトの名前。
-            template (str): プロンプトのテンプレート。
+        新しいプロンプトを保存します。
         """
         prompt = {
-            'name': name,
+            'name': str(name), # name を文字列に変換
             'template': template
         }
         self.prompts.append(prompt)
@@ -63,7 +59,7 @@ class PromptManager:
 
     def _save_to_file(self):
         """
-        プロンプトをJSONファイルに保存する。
+        プロンプトを JSON ファイルに保存します。
         """
         with open(self.prompts_file, 'w', encoding='utf-8') as f:
             json.dump(self.prompts, f, ensure_ascii=False, indent=2)
@@ -124,7 +120,7 @@ class SettingsManager:
 
     def _load_settings(self):
         """
-        設定ファイルから設定を読み込む。
+        設定ファイルから設定を読み込みます。
 
         ファイルが存在しない場合やJSONの読み込みに失敗した場合は、デフォルト設定を返します。
         設定ファイルに不足しているキーがある場合は、デフォルト設定から補完します。
@@ -145,7 +141,7 @@ class SettingsManager:
 
     def save_settings(self, settings):
         """
-        設定をJSONファイルに保存する。
+        設定を JSON ファイルに保存します。
 
         Args:
             settings (dict): 保存する設定の辞書。
@@ -156,7 +152,7 @@ class SettingsManager:
 
     def get_settings(self):
         """
-        現在の設定を取得する。
+        現在の設定を取得します。
 
         Returns:
             dict: 現在の設定の辞書。

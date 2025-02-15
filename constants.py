@@ -28,8 +28,8 @@ FONTS = {
 
 WINDOW_SIZES = {
     'main_min': (300, 300),
-    'prompt_creation': (600, 400),
-    'prompt_creation_min': (500, 500),
+    'prompt_creation': (700, 500), # サイズを少し大きくしました
+    'prompt_creation_min': (600, 400),
     'variable_dialog': (300, 150)
 }
 
