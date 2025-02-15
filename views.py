@@ -344,11 +344,20 @@ class FlashPromptApp:
         ttk.Button(button_frame,
                   text='プロンプト作成',
                   command=self._open_prompt_creation,
-                  style='TButton').pack(side='left', padx=5)
+                  style='TButton').pack(side='left', padx=5) # 明示的に TButton スタイルを指定
         ttk.Button(button_frame,
                   text='削除',
-                  command=self._delete_prompt,
-                  style='Danger.TButton').pack(side='left', padx=5)
+                  command=self._delete_prompt
+                  ).pack(side='left', padx=5)
+
+        self.style.configure('Danger.TButton',  # インラインで Danger.TButton スタイルを定義
+                           padding=[15, 8],
+                           background=COLORS['danger'],
+                           foreground='red',
+                           font=FONTS['default'])
+        self.style.map('Danger.TButton',
+                  background=[('active', COLORS['danger_hover'])],
+                  relief=[('pressed', 'flat')])
 
         # プロンプト一覧の表示（下部に配置）
         list_frame = ttk.Frame(self.list_frame)

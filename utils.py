@@ -48,16 +48,6 @@ def setup_styles(style):
               background=[('active', COLORS['primary_hover'])],
               relief=[('pressed', 'flat')])
 
-    # 危険ボタンスタイル
-    style.configure('Danger.TButton',
-                   padding=[15, 8],
-                   background=COLORS['danger'],
-                   foreground=COLORS['surface'],
-                   font=FONTS['default'])
-    style.map('Danger.TButton',
-              background=[('active', COLORS['danger_hover'])],
-              relief=[('pressed', 'flat')])
-
     # キャンセルボタンスタイル
     style.configure('Cancel.TButton',
                    padding=[15, 8],
