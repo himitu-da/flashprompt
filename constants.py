@@ -1,3 +1,12 @@
+"""
+このファイルには、アプリケーション全体で使用される定数が定義されています。
+
+COLORS: UIの色テーマを定義する辞書。
+FONTS: UIのフォントスタイルを定義する辞書。
+WINDOW_SIZES: ウィンドウのサイズ設定を定義する辞書。
+DEFAULT_SETTINGS: アプリケーションのデフォルト設定を定義する辞書。
+"""
+
 COLORS = {
     'primary': '#2962ff',
     'primary_hover': '#1565c0',
@@ -22,4 +31,9 @@ WINDOW_SIZES = {
     'prompt_creation': (600, 400),
     'prompt_creation_min': (500, 500),
     'variable_dialog': (300, 150)
+}
+
+# デフォルト設定
+DEFAULT_SETTINGS = {
+    'save_directory': '',  # デフォルトは空文字列
 }
