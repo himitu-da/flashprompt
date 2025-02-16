@@ -19,7 +19,7 @@ class PromptCreationWindow:
 
     既存のプロンプトを編集したり、新しいプロンプトを作成したりするために使用されます。
     """
-    def __init__(self, parent, prompt_data):
+    def __init__(self, parent, prompt_data, initial_tab='prompt', always_on_top=True):
         """
         PromptCreationWindowクラスのコンストラクタ。
 
@@ -28,10 +28,12 @@ class PromptCreationWindow:
         Args:
             parent (tk.Tk or tk.Toplevel): 親ウィンドウオブジェクト。
             prompt_data (dict): 編集するプロンプトのデータ（新規作成の場合は空の辞書）。
+            initial_tab (str): 初期に選択するタブの名前。'prompt' または 'template'。
+            always_on_top (bool): ウィンドウを常に最前面に表示するかどうか。
         """
         self.window = tk.Toplevel(parent)
-        self.window.title("プロンプト作成")
-        self.window.attributes('-topmost', True)
+        self.window.title(prompt_data.get('name', 'プロンプト作成'))
+        self.window.attributes('-topmost', always_on_top)
 
         # ウィンドウのサイズを設定
         self.window.resizable(True, True)
@@ -43,12 +45,10 @@ class PromptCreationWindow:
 
         self.prompt_data = prompt_data
         self.original_template = prompt_data['template']  # 編集をキャンセルするために元のテンプレートを保存
-        self.original_name = prompt_data['name'] # 編集をキャンセルするために元のプロンプト名を保存
+        self.original_name = prompt_data['name'] # 編集をキャンセルするために元のテンプレート名を保存
 
         # スタイルの設定
         self.style = ttk.Style()
-        self.style.configure('Danger.TButton', foreground='red')
-        self.style.configure('Cancel.TButton', foreground='red')
 
         self.notebook = ttk.Notebook(self.window)
         self.notebook.pack(expand=True, fill='both')
@@ -58,13 +58,16 @@ class PromptCreationWindow:
         self.notebook.add(self.prompt_tab, text='プロンプト作成')
         self._setup_prompt_creation_tab()
 
-        # テンプレート変更タブ
+        # テンプレート編集タブ
         self.template_change_tab = ttk.Frame(self.notebook)
-        self.notebook.add(self.template_change_tab, text='テンプレート変更')
+        self.notebook.add(self.template_change_tab, text='テンプレート編集')
         self._setup_template_change_tab()
 
-        # デフォルトで「プロンプト作成」タブを選択
-        self.notebook.select(self.prompt_tab)
+        # デフォルトで指定されたタブを選択
+        if initial_tab == 'template':
+            self.notebook.select(self.template_change_tab)
+        else:
+            self.notebook.select(self.prompt_tab)
         self._update_variables_listbox() # 変数一覧を初期化
 
 
@@ -83,9 +86,9 @@ class PromptCreationWindow:
         self.preview_text = tk.Text(preview_frame, height=5, width=50, font=FONTS['input'])
         self.preview_text.pack(padx=5, pady=5, fill='both', expand=True)
 
-        # コピーボタン
-        copy_btn = ttk.Button(prompt_frame, text="コピー", command=self.copy_to_clipboard)
-        copy_btn.pack(pady=10)
+        # コピーボタンをインスタンス変数として保存
+        self.copy_button = ttk.Button(prompt_frame, text="コピー", command=self.copy_to_clipboard)
+        self.copy_button.pack(pady=10)
 
         # 初期プレビューを生成
         self.update_preview(None)
@@ -97,7 +100,7 @@ class PromptCreationWindow:
 
     def _setup_template_change_tab(self):
         """
-        「テンプレート変更」タブのUIをセットアップする。(テンプレート登録タブをコピーして修正)
+        「テンプレート編集」タブのUIをセットアップする。(テンプレート登録タブをコピーして修正)
         """
         # メインコンテンツを左右に分けるフレーム
         content_frame = ttk.Frame(self.template_change_tab, style='TFrame')
@@ -106,13 +109,6 @@ class PromptCreationWindow:
         # 左側フレーム（入力エリア）
         left_frame = ttk.LabelFrame(content_frame, text="テンプレート編集", style='TLabelframe') # textを変更
         left_frame.pack(side='left', fill='both', expand=True, padx=(0, 10))
-
-        # プロンプト名表示 (削除)
-        # name_frame = ttk.Frame(left_frame, style='TFrame')
-        # name_frame.pack(fill='x', pady=10, padx=10)
-        # ttk.Label(name_frame, text="プロンプト名:", style='TLabel').pack(side='left')
-        # name_label = ttk.Label(name_frame, text=self.prompt_data['name'], font=FONTS['input']) # name_labelを削除
-        # name_label.pack(side='left', padx=5)
 
         # テンプレート入力エリア
         template_label_frame = ttk.Frame(left_frame, style='TFrame')
@@ -212,13 +208,20 @@ class PromptCreationWindow:
         """
         テンプレート内の変数の変更に基づいてプロンプト作成タブの変数入力エリアを更新する。
         """
-        if hasattr(self, 'vars_frame'): # vars_frame が存在するか確認 (念のため)
-            self.vars_frame.destroy() # 既存の vars_frame を破棄
-
-        # 変数入力エリアを再セットアップ
-        self._setup_variable_input_area(self.prompt_tab)
-        # プレビューを更新
-        self.update_preview(None)
+        if not hasattr(self, 'vars_frame') or not self.vars_frame.winfo_exists():
+            # vars_frame が存在しない場合は作成
+            self._setup_variable_input_area(self.prompt_tab)
+        else:
+            # vars_frame が存在する場合は、中身を更新
+            for child in self.vars_frame.winfo_children():
+                child.destroy()
+            variables = list(dict.fromkeys(re.findall(r'\{\{(\w+)\}\}', self.prompt_data['template'])))
+            if variables:
+                for var in variables:
+                    self._create_variable_input_row(var)
+            else:
+                self.var_entries = {}
+                self.first_entry = None
 
 
     def update_preview(self, event):
@@ -248,17 +251,20 @@ class PromptCreationWindow:
         """
         プレビューテキストをクリップボードにコピーする。
 
-        プレビューテキストを取得し、クリップボードにコピーし、成功メッセージを表示します。
+        プレビューテキストを取得し、クリップボードにコピーした後、
+        コピーボタンのテキストを一時的に「コピーしました」に変更して、
+        5秒後に元の「コピー」に戻します。
         """
         preview_text = self.preview_text.get("1.0", tk.END).strip()
         if preview_text:
             self.window.clipboard_clear()
             self.window.clipboard_append(preview_text)
-            messagebox.showinfo("成功", "クリップボードにコピーしました。")
+            self.copy_button.config(text="コピーしました")
+            self.window.after(5000, lambda: self.copy_button.config(text="コピー"))
 
     def _update_variables_listbox(self):
         """
-        テンプレート内の変数の変更に基づいて変数一覧リストボックスを更新する。(テンプレート変更タブ用)
+        テンプレート内の変数の変更に基づいて変数一覧リストボックスを更新する。(テンプレート編集タブ用)
         """
         template = self.prompt_data['template']
         variables = set(re.findall(r'\{\{(\w+)\}\}', template))
@@ -268,7 +274,7 @@ class PromptCreationWindow:
 
     def _on_template_change_change_tab(self, event=None):
         """
-        テンプレートテキストが変更されたときに変数を更新する。(テンプレート変更タブ用)
+        テンプレートテキストが変更されたときに変数を更新する。(テンプレート編集タブ用)
         """
         template = self.template_text.get("1.0", tk.END)
         variables = set(re.findall(r'\{\{(\w+)\}\}', template))
@@ -278,7 +284,7 @@ class PromptCreationWindow:
 
     def _insert_selected_variable_change_tab(self, event=None):
         """
-        選択された変数をテンプレート変更タブのテンプレートテキストに挿入する。(テンプレート変更タブ用)
+        選択された変数をテンプレート編集タブのテンプレートテキストに挿入する。(テンプレート編集タブ用)
         """
         selection = self.variables_listbox.curselection()
         if selection:
@@ -287,11 +293,11 @@ class PromptCreationWindow:
             self.template_text.insert(tk.INSERT, f"{{{{{variable}}}}}")
             self.template_text.mark_set(tk.INSERT, f"{current_pos}+{len(variable)+4}c")
             self.template_text.focus_set()
-            self._update_variables_prompt_creation_tab() # テンプレート変更を反映するためにプロンプト作成タブの変数を更新
+            self._update_variables_prompt_creation_tab() # テンプレート編集を反映するためにプロンプト作成タブの変数を更新
 
     def _show_variable_dialog_change_tab(self):
         """
-        変数追加ダイアログをテンプレート変更タブから表示する。(テンプレート変更タブ用)
+        変数追加ダイアログをテンプレート編集タブから表示する。(テンプレート編集タブ用)
         """
         dialog = tk.Toplevel(self.window)
         dialog.title("変数追加")
@@ -316,7 +322,6 @@ class PromptCreationWindow:
                 self.template_text.mark_set(tk.INSERT, f"{current_pos}+{len(var_name)+4}c")
                 dialog.destroy()
                 self._on_template_change_change_tab()
-                self._update_variables_prompt_creation_tab() # テンプレート変更を反映するためにプロンプト作成タブの変数を更新
                 self.template_text.focus_set()
             else:
                 messagebox.showerror("エラー", "変数名を入力してください。")
@@ -334,7 +339,7 @@ class PromptCreationWindow:
 
     def _save_template_change_tab(self):
         """
-        テンプレートの変更を保存する。(テンプレート変更タブ用)
+        テンプレートの変更を保存する。(テンプレート編集タブ用)
 
         ユーザーに保存の確認を求め、テンプレートを更新し、UIを編集不可状態に戻します。
         """
@@ -344,10 +349,10 @@ class PromptCreationWindow:
 
         # 新しいテンプレートを保存
         new_template = self.template_text.get("1.0", tk.END).strip()
-        new_name = self.original_name # プロンプト名は変更しない
+        new_name = self.original_name # テンプレート名は変更しない
 
         self.prompt_data['template'] = new_template
-        self.prompt_data['name'] = new_name # プロンプト名も更新 (念のため)
+        self.prompt_data['name'] = new_name # テンプレート名も更新 (念のため)
         self.original_template = new_template # original_templateも更新
         self.original_name = new_name # original_nameも更新
 
@@ -360,7 +365,7 @@ class PromptCreationWindow:
 
         # 変数入力エリアを更新 (プロンプト作成タブの変数入力を更新)
         self._update_variables_prompt_creation_tab()
-        # 変数一覧を更新 (テンプレート変更タブの変数一覧を更新)
+        # 変数一覧を更新 (テンプレート編集タブの変数一覧を更新)
         self._update_variables_listbox()
 
         # プレビューを更新
@@ -369,7 +374,7 @@ class PromptCreationWindow:
 
     def _discard_current_template_input_change_tab(self): # メソッド名変更
         """
-        テンプレートの編集を破棄し、元の状態に戻す。(テンプレート変更タブ用)
+        テンプレートの編集を破棄し、元の状態に戻す。(テンプレート編集タブ用)
 
         ユーザーに破棄の確認を求め、テンプレートを元の状態に戻し、UIを編集不可状態に戻します。
         """
@@ -391,7 +396,7 @@ class FlashPromptApp:
     """
     メインアプリケーションウィンドウクラス。
 
-    プロンプト一覧、テンプレート登録、設定のタブを含むメインアプリケーションウィンドウを管理します。
+    テンプレート一覧、テンプレート登録、設定のタブを含むメインアプリケーションウィンドウを管理します。
     """
     def __init__(self, root):
         """
@@ -404,13 +409,14 @@ class FlashPromptApp:
         """
         self.root = root
         self.root.title("FlashPrompt")
-        self.root.attributes('-topmost', True)
+        self.settings_manager = SettingsManager()
+        always_on_top = self.settings_manager.get_settings().get('always_on_top', True)
+        self.root.attributes('-topmost', always_on_top)
 
         # メインウィンドウの最小サイズを設定
         self.root.minsize(*WINDOW_SIZES['main_min'])
 
         self.prompt_manager = PromptManager()
-        self.settings_manager = SettingsManager()
         self.variables = set()  # 変数の一覧を保持
 
         # スタイルの設定
@@ -425,9 +431,9 @@ class FlashPromptApp:
         self.root.bind('<Left>', self._previous_tab)
         self.root.bind('<Right>', self._next_tab)
 
-        # プロンプト一覧タブ
+        # テンプレート一覧タブ
         self.list_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.list_frame, text='プロンプト一覧')
+        self.notebook.add(self.list_frame, text='テンプレート一覧')
         self._setup_list_tab()
 
         # テンプレート登録タブ
@@ -442,24 +448,24 @@ class FlashPromptApp:
 
     def _setup_list_tab(self):
         """
-        「プロンプト一覧」タブのUIをセットアップする。
+        「テンプレート一覧」タブのUIをセットアップする。
 
-        プロンプト作成ボタン、削除ボタン、プロンプト一覧のTreeViewを作成します。
+        プロンプト作成ボタン、削除ボタン、テンプレート一覧のTreeViewを作成します。
         """
-        # 上部のボタン配置用フレーム
         button_frame = ttk.Frame(self.list_frame)
         button_frame.pack(pady=10, padx=10)
 
-        ttk.Button(button_frame,
-                  text='プロンプト作成',
+        ttk.Button(button_frame, text='プロンプト作成', 
                   command=self._open_prompt_creation,
                   style='TButton').pack(side='left', padx=5)
-        ttk.Button(button_frame,
-                  text='削除',
+        ttk.Button(button_frame, text='テンプレート編集',
+                  command=self._open_template_edit,
+                  style='TButton').pack(side='left', padx=5)
+        ttk.Button(button_frame, text='削除',
                   command=self._delete_prompt,
                   style='Danger.TButton').pack(side='left', padx=5)
 
-        # プロンプト一覧の表示（下部に配置）
+        # テンプレート一覧の表示（下部に配置）
         list_frame = ttk.Frame(self.list_frame)
         list_frame.pack(fill='both', expand=True, padx=10)
 
@@ -482,24 +488,25 @@ class FlashPromptApp:
 
     def _open_prompt_creation(self, event=None):
         selection = self.prompt_list.selection()
+        always_on_top = self.settings_manager.get_settings().get('always_on_top', True)
         if not selection:
             items = self.prompt_list.get_children()
             if items:
                 selection = (items[0],)
         if selection:
-            prompt_name = str(self.prompt_list.item(selection[0])['values'][0]) # 明示的に文字列に変換 (再)
+            prompt_name = str(self.prompt_list.item(selection[0])['values'][0])
             if prompt_name:
                 prompt_data = self.prompt_manager.get_prompt(prompt_name)
                 if prompt_data is not None:
-                    PromptCreationWindow(self.root, prompt_data)
-        else: # 「プロンプト作成」ボタンから新規作成する場合
-            PromptCreationWindow(self.root, {'name': '新しいプロンプト', 'template': ''})
-
+                    PromptCreationWindow(self.root, prompt_data, always_on_top=always_on_top)
+        else:
+            # 「プロンプト作成」ボタンから新規作成する場合
+            PromptCreationWindow(self.root, {'name': '新しいプロンプト', 'template': ''}, always_on_top=always_on_top)
 
     def _delete_prompt(self):
         selection = self.prompt_list.selection()
         if selection:
-            prompt_name = str(self.prompt_list.item(selection[0])['values'][0]) # 明示的に文字列に変換 (再)
+            prompt_name = str(self.prompt_list.item(selection[0])['values'][0])
             if messagebox.askyesno("確認", f"プロンプト '{prompt_name}' を削除しますか？"):
                 self.prompt_manager.delete_prompt(prompt_name)
                 self._update_prompt_list()
@@ -515,13 +522,13 @@ class FlashPromptApp:
         content_frame.pack(fill='both', expand=True, padx=10, pady=10)
 
         # 左側フレーム（入力エリア）
-        left_frame = ttk.LabelFrame(content_frame, text="テンプレート作成", style='TLabelframe')
+        left_frame = ttk.LabelFrame(content_frame, text="テンプレート登録", style='TLabelframe')
         left_frame.pack(side='left', fill='both', expand=True, padx=(0, 10))
 
-        # プロンプト名入力
+        # テンプレート名入力
         name_frame = ttk.Frame(left_frame, style='TFrame')
         name_frame.pack(fill='x', pady=10, padx=10)
-        ttk.Label(name_frame, text="プロンプト名:", style='TLabel').pack(side='left')
+        ttk.Label(name_frame, text="テンプレート名:", style='TLabel').pack(side='left')
         self.template_name_entry = ttk.Entry(name_frame, width=40, style='TEntry', font=FONTS['input'])
         self.template_name_entry.pack(side='left', padx=5)
 
@@ -646,7 +653,7 @@ class FlashPromptApp:
         template = self.template_text.get("1.0", tk.END).strip()
 
         if not name:
-            messagebox.showerror("エラー", "プロンプト名を入力してください。")
+            messagebox.showerror("エラー", "テンプレート名を入力してください。")
             return
 
         if not template:
@@ -679,13 +686,13 @@ class FlashPromptApp:
         for item in self.prompt_list.get_children():
             self.prompt_list.delete(item)
         for prompt in self.prompt_manager.prompts:
-            self.prompt_list.insert('', 'end', values=(str(prompt['name']),)) # プロンプト名を文字列に変換して挿入
+            self.prompt_list.insert('', 'end', values=(str(prompt['name']),)) # テンプレート名を文字列に変換して挿入
 
     def _setup_settings_tab(self):
         """
         「設定」タブのUIをセットアップする。
 
-        保存ディレクトリ設定UIを作成します。
+        保存ディレクトリ設定UIに加えて、ウィンドウの最前面表示のオン/オフ設定を作成します。
         """
         # メインコンテンツを配置するフレーム
         content_frame = ttk.Frame(self.settings_frame, style='TFrame')
@@ -710,6 +717,13 @@ class FlashPromptApp:
         # 参照ボタン
         browse_btn = ttk.Button(input_frame, text="参照", command=self._browse_directory)
         browse_btn.pack(side='left')
+
+        # 新たに「常に最前面に表示」設定を追加
+        topmost_frame = ttk.Frame(content_frame, style='TFrame')
+        topmost_frame.pack(fill='x', padx=5, pady=5)
+        self.topmost_var = tk.BooleanVar(value=settings.get('always_on_top', True))
+        topmost_check = ttk.Checkbutton(topmost_frame, text="ウィンドウを常に最前面に表示", variable=self.topmost_var)
+        topmost_check.pack(side='left', padx=10, pady=5)
 
         # 保存ボタン
         save_frame = ttk.Frame(content_frame, style='TFrame')
@@ -736,11 +750,14 @@ class FlashPromptApp:
         """
         設定を保存する。
 
-        UIから設定値を取得し、SettingsManagerを使用して保存し、成功メッセージを表示します。
+        UIから設定値を取得し、SettingsManagerを使用して保存、さらに
+        ルートウィンドウの常に最前面表示の設定を更新します。
         """
         settings = self.settings_manager.get_settings()
         settings['save_directory'] = self.dir_entry.get()
+        settings['always_on_top'] = self.topmost_var.get()
         self.settings_manager.save_settings(settings)
+        self.root.attributes('-topmost', self.topmost_var.get())
         messagebox.showinfo("成功", "設定を保存しました。")
 
     def _next_tab(self, event=None):
@@ -771,7 +788,7 @@ class FlashPromptApp:
 
     def _navigate_list(self, event):
         """
-        プロンプト一覧をキーボードでナビゲートする。
+        テンプレート一覧をキーボードでナビゲートする。
 
         上下キーでリスト選択を移動し、リストの端でループしないようにします。
         """
@@ -799,3 +816,19 @@ class FlashPromptApp:
         self.prompt_list.see(items[next_idx])  # 選択したアイテムが見えるようにスクロール
 
         return 'break'
+
+    def _open_template_edit(self, event=None):
+        """テンプレート編集用のウィンドウを開く"""
+        selection = self.prompt_list.selection()
+        if not selection:
+            messagebox.showwarning("警告", "編集するプロンプトを選択してください")
+            return
+            
+        prompt_name = str(self.prompt_list.item(selection[0])['values'][0])
+        prompt_data = self.prompt_manager.get_prompt(prompt_name)
+        if prompt_data:
+            always_on_top = self.settings_manager.get_settings().get('always_on_top', True)
+            window = PromptCreationWindow(self.root, prompt_data, always_on_top=always_on_top)
+            window.notebook.select(window.template_change_tab)  # テンプレート編集タブを選択
+        else:
+            messagebox.showerror("エラー", "プロンプトが見つかりませんでした。")

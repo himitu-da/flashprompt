@@ -36,4 +36,5 @@ WINDOW_SIZES = {
 # デフォルト設定
 DEFAULT_SETTINGS = {
     'save_directory': '',  # デフォルトは空文字列
+    'always_on_top': True,   # 新しい設定: ウィンドウを常に最前面に表示するかどうか
 }
