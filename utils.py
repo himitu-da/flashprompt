@@ -124,10 +124,20 @@ def add_text_context_menu(widget):
     menu = tk.Menu(widget, tearoff=0)
     menu.add_command(label="全選択 (Ctrl+A)", command=lambda: widget.tag_add("sel", "1.0", "end-1c"))
     menu.add_separator()
-    menu.add_command(label="切り取り (Ctrl+X)", command=lambda: widget.event_generate("<<Cut>>"))
+    
+    def cut_text():
+        widget.event_generate("<<Cut>>")
+        # 少し遅延させてから、内容変更があったことを通知するイベントを生成
+        widget.after(1, lambda: widget.event_generate("<<ContentChanged>>"))
+    
+    def paste_text():
+        widget.event_generate("<<Paste>>")
+        widget.after(1, lambda: widget.event_generate("<<ContentChanged>>"))
+    
+    menu.add_command(label="切り取り (Ctrl+X)", command=cut_text)
     menu.add_command(label="コピー  (Ctrl+C)", command=lambda: widget.event_generate("<<Copy>>"))
-    menu.add_command(label="貼り付け (Ctrl+V)", command=lambda: widget.event_generate("<<Paste>>"))
-
+    menu.add_command(label="貼り付け (Ctrl+V)", command=paste_text)
+    
     def show_menu(event):
         menu.tk_popup(event.x_root, event.y_root)
         menu.grab_release()

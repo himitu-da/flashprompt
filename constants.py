@@ -38,3 +38,6 @@ DEFAULT_SETTINGS = {
     'save_directory': '',  # デフォルトは空文字列
     'always_on_top': True,   # 新しい設定: ウィンドウを常に最前面に表示するかどうか
 }
+
+# アプリケーションのバージョン番号
+VERSION = "1.0.0"

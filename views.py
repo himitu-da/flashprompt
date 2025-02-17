@@ -9,7 +9,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import re
 from models import PromptManager, SettingsManager
-from constants import COLORS, FONTS, WINDOW_SIZES, DEFAULT_SETTINGS
+from constants import COLORS, FONTS, WINDOW_SIZES, DEFAULT_SETTINGS, VERSION
 from utils import setup_styles, calculate_window_position, add_text_context_menu
 import os
 
@@ -123,7 +123,9 @@ class PromptCreationWindow:
         self.template_text.pack(padx=10, pady=5, fill='both', expand=True)
         add_text_context_menu(self.template_text)
         self.template_text.insert("1.0", self.prompt_data['template'])  # 既存のテンプレートを挿入
-        self.template_text.bind('<KeyRelease>', self._on_template_change_change_tab)  # メソッド名を変更
+        self.template_text.bind('<KeyRelease>', self._on_template_change_change_tab)
+        # Bind the custom event so that right-click menu cut/paste operations update variables immediately.
+        self.template_text.bind("<<ContentChanged>>", self._on_template_change_change_tab)
 
         # 右側フレーム（変数一覧）
         right_frame = ttk.LabelFrame(content_frame, text="変数一覧", style='TLabelframe')
@@ -205,6 +207,8 @@ class PromptCreationWindow:
         if self.first_entry is None:
             self.first_entry = text
         text.bind('<KeyRelease>', self.update_preview)
+        # Bind the custom event triggered after paste/cut actions.
+        text.bind('<<ContentChanged>>', self.update_preview)
 
 
     def _update_variables_prompt_creation_tab(self):
@@ -539,15 +543,18 @@ class FlashPromptApp:
         template_label_frame = ttk.Frame(left_frame, style='TFrame')
         template_label_frame.pack(fill='x', padx=10)
         ttk.Label(template_label_frame, text="テンプレート:", style='TLabel').pack(side='left')
-
+        
         self.template_text = tk.Text(left_frame, height=10, width=50,
-                                   font=FONTS['input'],
-                                   bg=COLORS['surface'],
-                                   fg=COLORS['text'])
+                                     font=FONTS['input'],
+                                     bg=COLORS['surface'],
+                                     fg=COLORS['text'])
         self.template_text.pack(padx=10, pady=5, fill='both', expand=True)
-        add_text_context_menu(self.template_text)  # ← 追加
+        add_text_context_menu(self.template_text)
+        
+        # Bind both key release and the custom content changed events
         self.template_text.bind('<KeyRelease>', self._on_template_change)
-
+        self.template_text.bind("<<ContentChanged>>", self._on_template_change)
+        
         # 右側フレーム（変数一覧）
         right_frame = ttk.LabelFrame(content_frame, text="変数一覧", style='TLabelframe')
         right_frame.pack(side='right', fill='both', padx=(10, 0))
@@ -701,35 +708,39 @@ class FlashPromptApp:
         # メインコンテンツを配置するフレーム
         content_frame = ttk.Frame(self.settings_frame, style='TFrame')
         content_frame.pack(fill='both', expand=True, padx=10, pady=10)
-
+        
+        # バージョンラベルを右上に表示する
+        version_label = ttk.Label(content_frame, text=f"version {VERSION}", font=FONTS['default'])
+        version_label.pack(side='top', anchor='ne', pady=(0, 5))
+        
         # 保存ディレクトリ設定
         dir_frame = ttk.LabelFrame(content_frame, text="保存ディレクトリ", style='TLabelframe')
         dir_frame.pack(fill='x', padx=5, pady=5)
-
+        
         # 現在の設定を取得
         settings = self.settings_manager.get_settings()
-
+        
         # ディレクトリ入力フレーム
         input_frame = ttk.Frame(dir_frame, style='TFrame')
         input_frame.pack(fill='x', padx=10, pady=10)
-
+        
         # ディレクトリパス入力欄
         self.dir_entry = ttk.Entry(input_frame, width=40, style='TEntry', font=FONTS['input'])
         self.dir_entry.pack(side='left', padx=(0, 5), fill='x', expand=True)
         self.dir_entry.insert(0, settings.get('save_directory', ''))
-
+        
         # 参照ボタン
         browse_btn = ttk.Button(input_frame, text="参照", command=self._browse_directory)
         browse_btn.pack(side='left')
-
-        # 新たに「常に最前面に表示」設定を追加
+        
+        # ウィンドウ常時最前面設定
         topmost_frame = ttk.Frame(content_frame, style='TFrame')
         topmost_frame.pack(fill='x', padx=5, pady=5)
         self.topmost_var = tk.BooleanVar(value=settings.get('always_on_top', True))
         topmost_check = ttk.Checkbutton(topmost_frame, text="ウィンドウを常に最前面に表示", variable=self.topmost_var)
         topmost_check.pack(side='left', padx=10, pady=5)
-
-        # 保存ボタン
+        
+        # 保存ボタン（その他のUI部品はその後に配置）
         save_frame = ttk.Frame(content_frame, style='TFrame')
         save_frame.pack(fill='x', padx=5, pady=10)
         save_btn = ttk.Button(save_frame, text="設定を保存", command=self._save_settings)
