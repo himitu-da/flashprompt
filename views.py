@@ -10,7 +10,7 @@ from tkinter import ttk, messagebox, filedialog
 import re
 from models import PromptManager, SettingsManager
 from constants import COLORS, FONTS, WINDOW_SIZES, DEFAULT_SETTINGS
-from utils import setup_styles, calculate_window_position
+from utils import setup_styles, calculate_window_position, add_text_context_menu
 import os
 
 class PromptCreationWindow:
@@ -85,6 +85,7 @@ class PromptCreationWindow:
 
         self.preview_text = tk.Text(preview_frame, height=5, width=50, font=FONTS['input'])
         self.preview_text.pack(padx=5, pady=5, fill='both', expand=True)
+        add_text_context_menu(self.preview_text)
 
         # コピーボタンをインスタンス変数として保存
         self.copy_button = ttk.Button(prompt_frame, text="コピー", command=self.copy_to_clipboard)
@@ -107,7 +108,7 @@ class PromptCreationWindow:
         content_frame.pack(fill='both', expand=True, padx=10, pady=10)
 
         # 左側フレーム（入力エリア）
-        left_frame = ttk.LabelFrame(content_frame, text="テンプレート編集", style='TLabelframe') # textを変更
+        left_frame = ttk.LabelFrame(content_frame, text="テンプレート編集", style='TLabelframe')
         left_frame.pack(side='left', fill='both', expand=True, padx=(0, 10))
 
         # テンプレート入力エリア
@@ -115,13 +116,14 @@ class PromptCreationWindow:
         template_label_frame.pack(fill='x', padx=10)
         ttk.Label(template_label_frame, text="テンプレート:", style='TLabel').pack(side='left')
 
-        self.template_text = tk.Text(left_frame, height=10, width=50, # heightを10に設定
-                                   font=FONTS['input'],
-                                   bg=COLORS['surface'],
-                                   fg=COLORS['text'])
+        self.template_text = tk.Text(left_frame, height=10, width=50,  # heightを10に設定
+                                     font=FONTS['input'],
+                                     bg=COLORS['surface'],
+                                     fg=COLORS['text'])
         self.template_text.pack(padx=10, pady=5, fill='both', expand=True)
-        self.template_text.insert("1.0", self.prompt_data['template']) # 既存のテンプレートを挿入
-        self.template_text.bind('<KeyRelease>', self._on_template_change_change_tab) # メソッド名を変更
+        add_text_context_menu(self.template_text)
+        self.template_text.insert("1.0", self.prompt_data['template'])  # 既存のテンプレートを挿入
+        self.template_text.bind('<KeyRelease>', self._on_template_change_change_tab)  # メソッド名を変更
 
         # 右側フレーム（変数一覧）
         right_frame = ttk.LabelFrame(content_frame, text="変数一覧", style='TLabelframe')
@@ -193,6 +195,7 @@ class PromptCreationWindow:
 
         text = tk.Text(text_frame, width=1, height=3, font=FONTS['input'])
         text.pack(side='left', fill='both', expand=True)
+        add_text_context_menu(text)
 
         scrollbar = ttk.Scrollbar(text_frame, orient="vertical", command=text.yview)
         scrollbar.pack(side='right', fill='y')
@@ -542,6 +545,7 @@ class FlashPromptApp:
                                    bg=COLORS['surface'],
                                    fg=COLORS['text'])
         self.template_text.pack(padx=10, pady=5, fill='both', expand=True)
+        add_text_context_menu(self.template_text)  # ← 追加
         self.template_text.bind('<KeyRelease>', self._on_template_change)
 
         # 右側フレーム（変数一覧）

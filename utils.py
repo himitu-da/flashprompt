@@ -2,6 +2,7 @@
 UIユーティリティ関数とスタイル設定を定義するモジュール。
 """
 
+import tkinter as tk
 from tkinter import ttk
 from constants import COLORS, FONTS
 
@@ -114,3 +115,20 @@ def calculate_window_position(parent, width, height):
     y = max(0, min(y, screen_height - height))
 
     return x, y
+
+def add_text_context_menu(widget):
+    """
+    右クリックで「全選択」「切り取り」「コピー」「貼り付け」できるコンテキストメニューを
+    TkinterのTextウィジェットに追加します。
+    """
+    menu = tk.Menu(widget, tearoff=0)
+    menu.add_command(label="全選択 (Ctrl+A)", command=lambda: widget.tag_add("sel", "1.0", "end-1c"))
+    menu.add_separator()
+    menu.add_command(label="切り取り (Ctrl+X)", command=lambda: widget.event_generate("<<Cut>>"))
+    menu.add_command(label="コピー  (Ctrl+C)", command=lambda: widget.event_generate("<<Copy>>"))
+    menu.add_command(label="貼り付け (Ctrl+V)", command=lambda: widget.event_generate("<<Paste>>"))
+
+    def show_menu(event):
+        menu.tk_popup(event.x_root, event.y_root)
+        menu.grab_release()
+    widget.bind("<Button-3>", show_menu)
